@@ -1,0 +1,102 @@
+version: '3'
+
+networks:
+  robusta:
+
+services:
+  robusta:
+    build:
+      context: .
+      dockerfile: nginx.dockerfile
+    container_name: nginx_robusta
+    ports:
+      - 3800:80
+    volumes:
+      - ./src:/var/www/html:delegated
+    depends_on:
+      - php
+      - mysql
+      - phpmyadmin
+      - composer
+      - artisan
+    networks:
+      - robusta
+
+  mysql:
+    image: mariadb:10.5.8
+    container_name: mysql_robusta
+    restart: unless-stopped
+    tty: true
+    ports:
+      - 3807:3306
+    environment:
+      MYSQL_DATABASE: robusta
+      MARIADB_DATABASE: robusta
+      MYSQL_USER: project
+      MARIADB_USER: project
+      MYSQL_PASSWORD: project
+      MARIADB_PASSWORD: project
+      MARIADB_ROOT_PASSWORD: project
+      MYSQL_ROOT_PASSWORD: project
+      SERVICE_TAGS: dev
+      SERVICE_NAME: mysql
+    networks:
+      - robusta
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin_robusta
+    environment:
+      MYSQL_USERNAME: root
+      MYSQL_ROOT_PASSWORD: project
+      PMA_HOST: mysql_robusta
+      PMA_PORT: 3306
+      PMA_ARBITRARY: 1
+      UPLOAD_LIMIT: 300M
+    restart: always
+    ports:
+      - 3890:80
+    networks:
+      - robusta
+
+  php:
+    #    extra_hosts:
+    #      - "host.docker.internal:host-gateway"
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: php_robusta
+    volumes:
+      - ./src:/var/www/html:delegated
+    networks:
+      - robusta
+
+  composer:
+    build:
+      context: .
+      dockerfile: composer.dockerfile
+    container_name: composer_robusta
+    volumes:
+      - ./src:/var/www/html
+    working_dir: /var/www/html
+    depends_on:
+      - php
+    user: robusta
+    entrypoint: [ 'composer', '--ignore-platform-reqs' ]
+    networks:
+      - robusta
+
+  artisan:
+    build:
+      context: .
+      dockerfile: php.dockerfile
+    container_name: artisan_robusta
+    volumes:
+      - ./src:/var/www/html:delegated
+    depends_on:
+      - mysql
+    working_dir: /var/www/html
+    user: robusta
+    entrypoint: [ 'php', '/var/www/html/artisan' ]
+    networks:
+      - robusta
